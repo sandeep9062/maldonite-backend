@@ -1,16 +1,79 @@
 // controllers/quoteRequestController.js
 import QuoteRequest from "../models/QuoteRequest.js";
+import axios from "axios";
 
 // Create a new quote request
 export const createQuoteRequest = async (req, res) => {
   try {
-    const { name, email, phone, projectType, description, budget, timeline } =
-      req.body;
+    const {
+      name,
+      email,
+      phone,
+      projectType,
+      description,
+      budget,
+      timeline,
+      recaptchaToken,
+    } = req.body;
+
+    console.log("=== Quote Request Submission ===");
+    console.log("Form data:", {
+      name,
+      email,
+      phone,
+      projectType,
+      description,
+      budget,
+      timeline,
+    });
+    console.log("reCAPTCHA token:", recaptchaToken);
+
+    if (!recaptchaToken) {
+      console.log("❌ reCAPTCHA token missing");
+      return res
+        .status(400)
+        .json({ success: false, message: "reCAPTCHA token missing" });
+    }
+
+    // ✅ Verify reCAPTCHA
+    const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+    const googleVerifyUrl = `https://www.google.com/recaptcha/api/siteverify`;
+
+    console.log(
+      "Verifying reCAPTCHA with secret key:",
+      secretKey ? "****" : "missing",
+    );
+
+    const response = await axios.post(
+      googleVerifyUrl,
+      {},
+      {
+        params: {
+          secret: secretKey,
+          response: recaptchaToken,
+        },
+      },
+    );
+
+    console.log("reCAPTCHA verification response:", response.data);
+
+    if (!response.data.success) {
+      console.log("❌ reCAPTCHA verification failed");
+      console.log("Error codes:", response.data["error-codes"]);
+      return res.status(400).json({
+        success: false,
+        message: "Failed reCAPTCHA verification",
+        errors: response.data["error-codes"],
+      });
+    }
+
+    console.log("✅ reCAPTCHA verification successful");
 
     const files = req.files
       ? req.files.map((file) => file.path || file.url) // handling multer/cloudinary
       : [];
 
+    // ✅ Save quote request to DB
     const newRequest = new QuoteRequest({
       name,
       email,
@@ -20,9 +83,13 @@ export const createQuoteRequest = async (req, res) => {
       budget,
       timeline,
       files,
+      recaptchaToken,
     });
 
     await newRequest.save();
+
+    console.log("✅ Quote request saved to database");
+
     res.status(201).json({
       success: true,
       message: "Quote request submitted successfully",
@@ -67,7 +134,7 @@ export const updateQuoteRequest = async (req, res) => {
     const updatedRequest = await QuoteRequest.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedRequest) {

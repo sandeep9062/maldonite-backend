@@ -9,8 +9,9 @@ const newsletterSchema = new mongoose.Schema(
       lowercase: true,
       match: [/.+@.+\..+/, "Please enter a valid email"],
     },
+    recaptchaToken: { type: String, trim: true },
   }, // This comma was missing to separate the schema definition from the options.
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // The variable name "clientSchema" was a typo; it should be "newsletterSchema".

@@ -1,16 +1,62 @@
 import NewsLetter from "../models/NewsLetter.js";
+import axios from "axios";
 
 // @desc    Subscribe a user to the newsletter
 // @route   POST /api/newsletter/subscribe
 // @access  Public
 const subscribeToNewsletter = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, recaptchaToken } = req.body;
+
+    console.log("=== Newsletter Subscription ===");
+    console.log("Email:", email);
+    console.log("reCAPTCHA token:", recaptchaToken);
 
     // 1. Basic validation: Check if email is provided
     if (!email) {
       return res.status(400).json({ message: "Email is required." });
     }
+
+    if (!recaptchaToken) {
+      console.log("❌ reCAPTCHA token missing");
+      return res
+        .status(400)
+        .json({ success: false, message: "reCAPTCHA token missing" });
+    }
+
+    // ✅ Verify reCAPTCHA
+    const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+    const googleVerifyUrl = `https://www.google.com/recaptcha/api/siteverify`;
+
+    console.log(
+      "Verifying reCAPTCHA with secret key:",
+      secretKey ? "****" : "missing",
+    );
+
+    const response = await axios.post(
+      googleVerifyUrl,
+      {},
+      {
+        params: {
+          secret: secretKey,
+          response: recaptchaToken,
+        },
+      },
+    );
+
+    console.log("reCAPTCHA verification response:", response.data);
+
+    if (!response.data.success) {
+      console.log("❌ reCAPTCHA verification failed");
+      console.log("Error codes:", response.data["error-codes"]);
+      return res.status(400).json({
+        success: false,
+        message: "Failed reCAPTCHA verification",
+        errors: response.data["error-codes"],
+      });
+    }
+
+    console.log("✅ reCAPTCHA verification successful");
 
     // 2. Check if the email already exists to prevent duplicates
     const existingSubscriber = await NewsLetter.findOne({ email });
@@ -21,7 +67,9 @@ const subscribeToNewsletter = async (req, res) => {
     }
 
     // 3. Create a new newsletter document
-    const newSubscriber = await NewsLetter.create({ email });
+    const newSubscriber = await NewsLetter.create({ email, recaptchaToken });
+
+    console.log("✅ Newsletter subscription saved to database");
 
     // 4. Respond with a success message
     res.status(201).json({

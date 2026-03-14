@@ -27,9 +27,10 @@ const QuoteRequestSchema = new Schema(
       enum: ["rush", "standard", "flexible", "planning"],
       required: true,
     },
+    recaptchaToken: { type: String, trim: true },
     files: [{ type: String }], // file paths or cloud URLs
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.model("QuoteRequest", QuoteRequestSchema);
