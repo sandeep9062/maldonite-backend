@@ -20,7 +20,7 @@ const serviceSchema = new mongoose.Schema(
       trim: true,
     },
 
-    shortDesc: {
+    desc: {
       type: String,
       required: true,
     },
@@ -53,7 +53,9 @@ const serviceSchema = new mongoose.Schema(
         "Consulting",
         "Custom Software",
         "Automation & RPA",
+        "Automation",
         "Big Data",
+        "AI & Automation",
         "QA & Testing",
         "Others",
       ],
@@ -432,7 +434,7 @@ const serviceSchema = new mongoose.Schema(
       default: 0,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Service =

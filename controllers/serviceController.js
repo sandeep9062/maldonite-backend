@@ -33,9 +33,10 @@ export const createService = async (req, res) => {
     // Check if slug already exists
     const existing = await Service.findOne({ slug });
     if (existing) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Service with this slug already exists" });
+      return res.status(400).json({
+        success: false,
+        message: "Service with this slug already exists",
+      });
     }
 
     const service = new Service({
@@ -62,7 +63,6 @@ export const createService = async (req, res) => {
     await service.save();
     res.status(201).json({ success: true, service });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -87,7 +87,9 @@ export const getServiceBySlug = async (req, res) => {
     const { slug } = req.params;
     const service = await Service.findOne({ slug });
     if (!service)
-      return res.status(404).json({ success: false, message: "Service not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Service not found" });
 
     res.status(200).json({ success: true, service });
   } catch (error) {
@@ -100,7 +102,32 @@ export const getServiceBySlug = async (req, res) => {
 // =============================
 export const updateService = async (req, res) => {
   try {
+    console.log("=== UPDATE SERVICE DEBUG ===");
+    console.log("Request params:", req.params);
+    console.log("Request body:", req.body);
+    console.log("Request files:", req.files);
+    console.log("Request headers:", req.headers);
+
     const { id } = req.params;
+
+    // Validate ID
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Service ID is required",
+      });
+    }
+
+    // Check if service exists
+    const existingService = await Service.findById(id);
+    if (!existingService) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
+
+    // Handle form data properly - req.body might be strings for arrays
     const updateData = {
       ...req.body,
       tags: toArray(req.body.tags),
@@ -110,26 +137,88 @@ export const updateService = async (req, res) => {
       keywords: toArray(req.body.keywords),
     };
 
-    // File updates
-    if (req.files?.image?.[0]?.path) updateData.image = req.files.image[0].path;
-    if (req.files?.serviceImage?.[0]?.path) updateData.serviceImage = req.files.serviceImage[0].path;
+    console.log("Processed update data:", updateData);
 
-    // Remove undefined fields
-    Object.keys(updateData).forEach(
-      (key) => updateData[key] === undefined && delete updateData[key]
-    );
+    // File updates - check if files exist and have path
+    if (
+      req.files &&
+      req.files.image &&
+      req.files.image[0] &&
+      req.files.image[0].path
+    ) {
+      updateData.image = req.files.image[0].path;
+      console.log("Updated image path:", updateData.image);
+    }
+    if (
+      req.files &&
+      req.files.serviceImage &&
+      req.files.serviceImage[0] &&
+      req.files.serviceImage[0].path
+    ) {
+      updateData.serviceImage = req.files.serviceImage[0].path;
+      console.log("Updated service image path:", updateData.serviceImage);
+    }
+
+    // Remove undefined fields and empty strings
+    Object.keys(updateData).forEach((key) => {
+      if (
+        updateData[key] === undefined ||
+        updateData[key] === null ||
+        updateData[key] === ""
+      ) {
+        delete updateData[key];
+      }
+    });
+
+    console.log("Final update data:", updateData);
 
     const updatedService = await Service.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
     });
 
-    if (!updatedService)
-      return res.status(404).json({ success: false, message: "Service not found" });
+    console.log("Updated service result:", updatedService);
 
-    res.status(200).json({ success: true, service: updatedService });
+    if (!updatedService) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found or update failed",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Service updated successfully",
+      service: updatedService,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("=== UPDATE SERVICE ERROR ===");
+    console.error("Error details:", error);
+    console.error("Error stack:", error.stack);
+    console.error("Error name:", error.name);
+    console.error("Error message:", error.message);
+
+    // Provide more specific error messages
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "Validation Error",
+        errors: error.errors,
+      });
+    }
+
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid service ID format",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 
@@ -141,9 +230,13 @@ export const deleteService = async (req, res) => {
     const { id } = req.params;
     const deletedService = await Service.findByIdAndDelete(id);
     if (!deletedService)
-      return res.status(404).json({ success: false, message: "Service not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Service not found" });
 
-    res.status(200).json({ success: true, message: "Service deleted successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "Service deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

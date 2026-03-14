@@ -125,6 +125,7 @@ app.listen(PORT, () => {
       }
     } catch (error) {
       // Save failed ping log to database
+      const responseTime = Date.now() - startTime;
       const pingLog = new PingLog({
         pingTime,
         status: "failed",
