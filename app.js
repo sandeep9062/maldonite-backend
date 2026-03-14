@@ -40,7 +40,16 @@ const PORT = process.env.PORT || 5000;
 
 // This allows your Next.js frontend (on a different port) to communicate with the Express backend.
 // In production, you would configure this to only allow specific origins.
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "https://dashboard.maldonite.com",
+      "https://maldonite.com",
+      "http://localhost:3000",
+    ],
+    credentials: true,
+  }),
+);
 
 // ✅ PAYLOAD TOO LARGE FIX: Increase the body parser limits.
 // This allows Express to handle larger request bodies, which is necessary for file uploads.
