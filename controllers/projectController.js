@@ -1,18 +1,15 @@
 import Project from "../models/Projects.js";
 
-// A helper function to ensure a value is always an array
 const toArray = (value) => {
   if (value === undefined || value === null || value === "") {
     return [];
   }
-  // If the value is a string, split it. Otherwise, return the array.
   return Array.isArray(value)
     ? value
     : value.split(",").map((item) => item.trim());
 };
 
-// @desc   Create new project
-// @route  POST /api/projects
+// Create new project
 export const createProject = async (req, res) => {
   try {
     const {
@@ -33,8 +30,10 @@ export const createProject = async (req, res) => {
       numberOfPages,
     } = req.body;
 
-    // Check for a duplicate slug before saving
-    const existingProject = await Project.findOne({ slug });
+    const existingProject = await Project.findOne({ slug })
+      .select("_id")
+      .lean()
+      .maxTimeMS(3000);
     if (existingProject) {
       return res
         .status(400)
@@ -53,7 +52,6 @@ export const createProject = async (req, res) => {
       clientName,
       place,
       timeDuration,
-      // ✅ Explicitly cast numeric fields
       cost: Number(cost),
       technologiesUsed: toArray(technologiesUsed),
       deployment,
@@ -66,13 +64,12 @@ export const createProject = async (req, res) => {
     const savedProject = await newProject.save();
     res.status(201).json(savedProject);
   } catch (err) {
-    console.error("Error creating project:", err); // ✅ Add server-side logging
+    console.error("Error creating project:", err.message);
     res.status(400).json({ message: "Invalid data", error: err.message });
   }
 };
 
-// @desc   Update project
-// @route  PUT /api/projects/:id
+// Update project
 export const updateProject = async (req, res) => {
   try {
     const {
@@ -94,18 +91,22 @@ export const updateProject = async (req, res) => {
       existingImages,
     } = req.body;
 
-    // Find the project being edited by its ID
-    const project = await Project.findById(req.params.id);
+    const project = await Project.findById(req.params.id)
+      .select("slug image")
+      .lean()
+      .maxTimeMS(5000);
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    // Check for slug uniqueness, excluding the current project
     if (slug && slug !== project.slug) {
       const existingSlug = await Project.findOne({
         slug,
         _id: { $ne: req.params.id },
-      });
+      })
+        .select("_id")
+        .lean()
+        .maxTimeMS(3000);
       if (existingSlug) {
         return res
           .status(400)
@@ -113,7 +114,6 @@ export const updateProject = async (req, res) => {
       }
     }
 
-    // Prepare the update data
     const updateData = {
       title,
       slug,
@@ -124,7 +124,6 @@ export const updateProject = async (req, res) => {
       clientName,
       place,
       timeDuration,
-      // ✅ Explicitly cast numeric fields
       cost: Number(cost),
       technologiesUsed: toArray(technologiesUsed),
       deployment,
@@ -133,42 +132,60 @@ export const updateProject = async (req, res) => {
       numberOfPages: Number(numberOfPages),
     };
 
-    // Process new images from Multer
     const newImages = req.files ? req.files.map((file) => file.path) : [];
-
-    // Combine the existing images (sent from frontend) with the new images
     const keptImages = toArray(existingImages);
     updateData.image = [...keptImages, ...newImages];
 
     const updatedProject = await Project.findByIdAndUpdate(
       req.params.id,
       updateData,
-      { new: true, runValidators: true }
-    );
+      { new: true, runValidators: true },
+    )
+      .lean()
+      .maxTimeMS(5000);
 
     res.status(200).json(updatedProject);
   } catch (err) {
-    console.error("Error updating project:", err); // ✅ Add server-side logging
+    console.error("Error updating project:", err.message);
     res.status(400).json({ message: "Update failed", error: err.message });
   }
 };
 
-// @desc   Get all projects
-// @route  GET /api/projects
+// Get all projects with pagination
 export const getProjects = async (req, res) => {
   try {
-    const projects = await Project.find().sort({ updatedAt: -1 });
-    res.status(200).json(projects);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const [projects, total] = await Promise.all([
+      Project.find()
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select(
+          "title slug live type description clientName technologiesUsed image createdAt",
+        )
+        .lean()
+        .maxTimeMS(5000),
+      Project.countDocuments(),
+    ]);
+
+    res.status(200).json({
+      projects,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
-// @desc   Get single project by ID
-// @route  GET /api/projects/:id
+// Get single project by ID
 export const getProjectById = async (req, res) => {
   try {
-    const project = await Project.findById(req.params.id);
+    const project = await Project.findById(req.params.id)
+      .lean()
+      .maxTimeMS(5000);
     if (!project) return res.status(404).json({ message: "Project not found" });
     res.status(200).json(project);
   } catch (err) {
@@ -176,11 +193,12 @@ export const getProjectById = async (req, res) => {
   }
 };
 
-// @desc   Get single project by Slug
-// @route  GET /api/projects/slug/:slug
+// Get single project by Slug
 export const getProjectBySlug = async (req, res) => {
   try {
-    const project = await Project.findOne({ slug: req.params.slug });
+    const project = await Project.findOne({ slug: req.params.slug })
+      .lean()
+      .maxTimeMS(5000);
     if (!project) return res.status(404).json({ message: "Project not found" });
     res.status(200).json(project);
   } catch (err) {
@@ -188,11 +206,12 @@ export const getProjectBySlug = async (req, res) => {
   }
 };
 
-// @desc   Delete project
-// @route  DELETE /api/projects/:id
+// Delete project
 export const deleteProject = async (req, res) => {
   try {
-    const deletedProject = await Project.findByIdAndDelete(req.params.id);
+    const deletedProject = await Project.findByIdAndDelete(req.params.id)
+      .lean()
+      .maxTimeMS(5000);
     if (!deletedProject)
       return res.status(404).json({ message: "Project not found" });
     res.status(200).json({ message: "Project deleted successfully" });

@@ -6,74 +6,70 @@ export const createLead = async (req, res) => {
   try {
     const { name, email, query, recaptchaToken } = req.body;
 
-    console.log("=== Lead Form Submission ===");
-    console.log("Form data:", { name, email, query });
-    console.log("reCAPTCHA token:", recaptchaToken);
-
     if (!recaptchaToken) {
-      console.log("❌ reCAPTCHA token missing");
       return res
         .status(400)
         .json({ success: false, message: "reCAPTCHA token missing" });
     }
 
-    // ✅ Verify reCAPTCHA
+    // Verify reCAPTCHA
     const secretKey = process.env.RECAPTCHA_SECRET_KEY;
-    const googleVerifyUrl = `https://www.google.com/recaptcha/api/siteverify`;
-
-    console.log(
-      "Verifying reCAPTCHA with secret key:",
-      secretKey ? "****" : "missing",
-    );
+    const params = new URLSearchParams({
+      secret: secretKey,
+      response: recaptchaToken,
+    });
 
     const response = await axios.post(
-      googleVerifyUrl,
-      {},
-      {
-        params: {
-          secret: secretKey,
-          response: recaptchaToken,
-        },
-      },
+      "https://www.google.com/recaptcha/api/siteverify",
+      params.toString(),
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
     );
 
-    console.log("reCAPTCHA verification response:", response.data);
-
     if (!response.data.success) {
-      console.log("❌ reCAPTCHA verification failed");
-      console.log("Error codes:", response.data["error-codes"]);
       return res.status(400).json({
         success: false,
         message: "Failed reCAPTCHA verification",
-        errors: response.data["error-codes"],
       });
     }
 
-    console.log("✅ reCAPTCHA verification successful");
-
-    // ✅ Save lead to DB
-    const lead = new Lead({
-      name,
-      email,
-      query,
-      recaptchaToken,
-    });
+    // Save lead to DB
+    const lead = new Lead({ name, email, query });
     const savedLead = await lead.save();
-
-    console.log("✅ Lead saved to database");
 
     res.status(201).json(savedLead);
   } catch (error) {
-    console.error("❌ Lead form submission error:", error);
+    console.error("Lead form submission error:", error.message);
     res.status(400).json({ message: error.message });
   }
 };
 
-// Get all leads
+// Get all leads with pagination
 export const getLeads = async (req, res) => {
   try {
-    const leads = await Lead.find().sort({ createdAt: -1 });
-    res.status(200).json(leads);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const [leads, total] = await Promise.all([
+      Lead.find()
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select("name email phone projectType budget status createdAt")
+        .lean()
+        .maxTimeMS(5000),
+      Lead.countDocuments(),
+    ]);
+
+    res.status(200).json({
+      leads,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -82,7 +78,7 @@ export const getLeads = async (req, res) => {
 // Get single lead by ID
 export const getLeadById = async (req, res) => {
   try {
-    const lead = await Lead.findById(req.params.id);
+    const lead = await Lead.findById(req.params.id).lean().maxTimeMS(5000);
     if (!lead) return res.status(404).json({ message: "Lead not found" });
     res.status(200).json(lead);
   } catch (error) {
@@ -95,7 +91,11 @@ export const updateLead = async (req, res) => {
   try {
     const updatedLead = await Lead.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
-    });
+      runValidators: true,
+    })
+      .lean()
+      .maxTimeMS(5000);
+
     if (!updatedLead)
       return res.status(404).json({ message: "Lead not found" });
     res.status(200).json(updatedLead);
@@ -107,7 +107,10 @@ export const updateLead = async (req, res) => {
 // Delete lead
 export const deleteLead = async (req, res) => {
   try {
-    const deletedLead = await Lead.findByIdAndDelete(req.params.id);
+    const deletedLead = await Lead.findByIdAndDelete(req.params.id)
+      .lean()
+      .maxTimeMS(5000);
+
     if (!deletedLead)
       return res.status(404).json({ message: "Lead not found" });
     res.status(200).json({ message: "Lead deleted successfully" });
@@ -123,8 +126,11 @@ export const updateLeadStatus = async (req, res) => {
     const updatedLead = await Lead.findByIdAndUpdate(
       req.params.id,
       { status },
-      { new: true },
-    );
+      { new: true, runValidators: true },
+    )
+      .lean()
+      .maxTimeMS(5000);
+
     if (!updatedLead)
       return res.status(404).json({ message: "Lead not found" });
     res.status(200).json(updatedLead);

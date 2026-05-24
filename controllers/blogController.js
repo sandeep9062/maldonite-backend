@@ -3,12 +3,12 @@ import mongoose from "mongoose";
 import fs from "fs";
 import path from "path";
 
-// ✅ Create Blog - Now expects slug from the frontend
+// Create Blog - Now expects slug from the frontend
 export const createBlog = async (req, res) => {
   try {
     const {
       title,
-      slug, // ✅ Expect slug from request body
+      slug,
       desc,
       content,
       category,
@@ -28,9 +28,17 @@ export const createBlog = async (req, res) => {
       req.files && req.files.authorImage ? req.files.authorImage[0].path : null;
 
     // Check if a blog with the same slug already exists
-    const existingBlog = await Blog.findOne({ slug });
+    const existingBlog = await Blog.findOne({ slug })
+      .select("_id")
+      .lean()
+      .maxTimeMS(3000);
     if (existingBlog) {
-      return res.status(409).json({ success: false, message: "A blog with this slug already exists." });
+      return res
+        .status(409)
+        .json({
+          success: false,
+          message: "A blog with this slug already exists.",
+        });
     }
 
     const blog = new Blog({
@@ -58,17 +66,45 @@ export const createBlog = async (req, res) => {
   }
 };
 
-// ✅ Get All Blogs
+// Get All Blogs with pagination
 export const getBlogs = async (req, res) => {
   try {
-    const blogs = await Blog.find().sort({ createdAt: -1 });
-    res.status(200).json({ success: true, blogs });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const status = req.query.status;
+
+    const filter = status ? { status } : {};
+
+    const [blogs, total] = await Promise.all([
+      Blog.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select(
+          "title slug desc image category tags author date readTime views likes isFeatured status createdAt",
+        )
+        .lean()
+        .maxTimeMS(5000),
+      Blog.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      blogs,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ✅ Get Blog by ID
+// Get Blog by ID
 export const getBlogById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -77,7 +113,7 @@ export const getBlogById = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Invalid blog ID" });
     }
-    const blog = await Blog.findById(id);
+    const blog = await Blog.findById(id).lean().maxTimeMS(5000);
     if (!blog) {
       return res
         .status(404)
@@ -89,11 +125,11 @@ export const getBlogById = async (req, res) => {
   }
 };
 
-// ✅ Get Blog by Slug
+// Get Blog by Slug
 export const getBlogBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
-    const blog = await Blog.findOne({ slug });
+    const blog = await Blog.findOne({ slug }).lean().maxTimeMS(5000);
     if (!blog) {
       return res
         .status(404)
@@ -105,13 +141,13 @@ export const getBlogBySlug = async (req, res) => {
   }
 };
 
-// ✅ Update Blog - Now expects an updated slug from the frontend
+// Update Blog
 export const updateBlog = async (req, res) => {
   try {
     const { id } = req.params;
     const {
       title,
-      slug, // ✅ Expect updated slug from request body
+      slug,
       desc,
       content,
       category,
@@ -125,16 +161,29 @@ export const updateBlog = async (req, res) => {
       isFeatured,
     } = req.body;
 
-    const blog = await Blog.findById(id);
+    const blog = await Blog.findById(id)
+      .select("slug image authorImage")
+      .lean()
+      .maxTimeMS(5000);
     if (!blog) {
-      return res.status(404).json({ success: false, message: "Blog not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Blog not found" });
     }
 
     // Check for slug uniqueness if it's being updated
     if (slug && slug !== blog.slug) {
-      const existingBlog = await Blog.findOne({ slug });
+      const existingBlog = await Blog.findOne({ slug, _id: { $ne: id } })
+        .select("_id")
+        .lean()
+        .maxTimeMS(3000);
       if (existingBlog) {
-        return res.status(409).json({ success: false, message: "A blog with this new slug already exists." });
+        return res
+          .status(409)
+          .json({
+            success: false,
+            message: "A blog with this new slug already exists.",
+          });
       }
     }
 
@@ -157,7 +206,7 @@ export const updateBlog = async (req, res) => {
     if (req.files && req.files.image) {
       if (blog.image) {
         fs.unlink(path.join(blog.image), (err) => {
-          if (err) console.error("Error deleting old image:", err);
+          if (err) console.error("Error deleting old image:", err.message);
         });
       }
       updateData.image = req.files.image[0].path;
@@ -166,7 +215,8 @@ export const updateBlog = async (req, res) => {
     if (req.files && req.files.authorImage) {
       if (blog.authorImage) {
         fs.unlink(path.join(blog.authorImage), (err) => {
-          if (err) console.error("Error deleting old author image:", err);
+          if (err)
+            console.error("Error deleting old author image:", err.message);
         });
       }
       updateData.authorImage = req.files.authorImage[0].path;
@@ -175,7 +225,9 @@ export const updateBlog = async (req, res) => {
     const updatedBlog = await Blog.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
-    });
+    })
+      .lean()
+      .maxTimeMS(5000);
 
     res.status(200).json({ success: true, blog: updatedBlog });
   } catch (error) {
@@ -183,74 +235,93 @@ export const updateBlog = async (req, res) => {
   }
 };
 
-// ✅ Delete Blog
+// Delete Blog
 export const deleteBlog = async (req, res) => {
   try {
-    const blog = await Blog.findByIdAndDelete(req.params.id);
+    const blog = await Blog.findById(req.params.id).maxTimeMS(5000);
     if (!blog) {
-      return res.status(404).json({ success: false, message: "Blog not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Blog not found" });
     }
 
-    // Optional: Delete associated images from the filesystem
+    // Delete associated images
     if (blog.image) {
       fs.unlink(path.join(blog.image), (err) => {
-        if (err) console.error("Error deleting blog image:", err);
+        if (err) console.error("Error deleting blog image:", err.message);
       });
     }
     if (blog.authorImage) {
       fs.unlink(path.join(blog.authorImage), (err) => {
-        if (err) console.error("Error deleting author image:", err);
+        if (err) console.error("Error deleting author image:", err.message);
       });
     }
 
-    res.status(200).json({ success: true, message: "Blog deleted successfully" });
+    await Blog.findByIdAndDelete(req.params.id).maxTimeMS(5000);
+
+    res
+      .status(200)
+      .json({ success: true, message: "Blog deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ✅ Delete Blog Image
+// Delete Blog Image
 export const deleteBlogImage = async (req, res) => {
   try {
-    const blog = await Blog.findById(req.params.id);
+    const blog = await Blog.findById(req.params.id).maxTimeMS(5000);
     if (!blog) {
-      return res.status(404).json({ success: false, message: "Blog not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Blog not found" });
     }
 
-    // Delete image file from the filesystem
     if (blog.image) {
       fs.unlink(path.join(blog.image), async (err) => {
         if (err) {
-          console.error("Error deleting image file:", err);
-          return res.status(500).json({ success: false, message: "Failed to delete image file" });
+          console.error("Error deleting image file:", err.message);
+          return res
+            .status(500)
+            .json({ success: false, message: "Failed to delete image file" });
         }
-        // Set image field to null and save the document
         blog.image = null;
         await blog.save();
-        res.status(200).json({ success: true, message: "Blog image deleted successfully" });
+        res
+          .status(200)
+          .json({ success: true, message: "Blog image deleted successfully" });
       });
     } else {
-      res.status(404).json({ success: false, message: "No blog image to delete" });
+      res
+        .status(404)
+        .json({ success: false, message: "No blog image to delete" });
     }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// ✅ Add Comment
+// Add Comment
 export const addComment = async (req, res) => {
   try {
     const { name, email, comment } = req.body;
-    const blog = await Blog.findById(req.params.id);
 
-    if (!blog) {
-      return res.status(404).json({ success: false, message: "Blog not found" });
+    const updatedBlog = await Blog.findByIdAndUpdate(
+      req.params.id,
+      { $push: { comments: { name, email, comment } } },
+      { new: true },
+    )
+      .select("comments")
+      .lean()
+      .maxTimeMS(5000);
+
+    if (!updatedBlog) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Blog not found" });
     }
 
-    blog.comments.push({ name, email, comment });
-    await blog.save();
-
-    res.status(201).json({ success: true, comments: blog.comments });
+    res.status(201).json({ success: true, comments: updatedBlog.comments });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

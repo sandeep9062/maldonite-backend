@@ -1,170 +1,59 @@
-import Property from "../models/Property.js";
-import User from "../models/User.js";
-import Booking from "../models/Booking.js";
+import Blog from "../models/Blog.js";
+import Contact from "../models/Contact.js";
+import Lead from "../models/Lead.js";
+import QuoteRequest from "../models/QuoteRequest.js";
+import NewsLetter from "../models/NewsLetter.js";
 
-// @desc    Get dashboard statistics
-// @route   GET /api/dashboard/stats
-// @access  Private/Admin
+// Get dashboard stats with parallel queries and lean
 export const getDashboardStats = async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
     const [
-      totalProperties,
-      totalUsers,
-      totalBookings,
-      todayBookings,
-      totalRevenue,
-      monthlyRevenue,
-      bookingsPerMonth,
-      revenuePerMonth,
+      totalBlogs,
+      totalContacts,
+      totalLeads,
+      totalQuoteRequests,
+      totalSubscribers,
+      recentContacts,
+      recentLeads,
+      recentQuotes,
     ] = await Promise.all([
-      Property.countDocuments(),
-      User.countDocuments(),
-      Booking.countDocuments(),
-      Booking.countDocuments({ createdAt: { $gte: today } }),
-      Booking.aggregate([
-        {
-          $lookup: {
-            from: "properties",
-            localField: "property",
-            foreignField: "_id",
-            as: "property",
-          },
-        },
-        { $unwind: "$property" },
-        { $group: { _id: null, totalRevenue: { $sum: "$property.price" } } },
-      ]),
-      Booking.aggregate([
-        {
-          $match: {
-            createdAt: {
-              $gte: new Date(
-                new Date().getFullYear(),
-                new Date().getMonth(),
-                1
-              ),
-            },
-          },
-        },
-        {
-          $lookup: {
-            from: "properties",
-            localField: "property",
-            foreignField: "_id",
-            as: "property",
-          },
-        },
-        { $unwind: "$property" },
-        { $group: { _id: null, monthlyRevenue: { $sum: "$property.price" } } },
-      ]),
-      Booking.aggregate([
-        {
-          $group: {
-            _id: {
-              year: { $year: "$createdAt" },
-              month: { $month: "$createdAt" },
-            },
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { "_id.year": 1, "_id.month": 1 } },
-        { $limit: 12 },
-        {
-          $project: {
-            _id: 0,
-            month: {
-              $let: {
-                vars: {
-                  monthsInString: [
-                    ,
-                    "Jan",
-                    "Feb",
-                    "Mar",
-                    "Apr",
-                    "May",
-                    "Jun",
-                    "Jul",
-                    "Aug",
-                    "Sep",
-                    "Oct",
-                    "Nov",
-                    "Dec",
-                  ],
-                },
-                in: { $arrayElemAt: ["$$monthsInString", "$_id.month"] },
-              },
-            },
-            bookings: "$count",
-          },
-        },
-      ]),
-      Booking.aggregate([
-        {
-          $lookup: {
-            from: "properties",
-            localField: "property",
-            foreignField: "_id",
-            as: "property",
-          },
-        },
-        { $unwind: "$property" },
-        {
-          $group: {
-            _id: {
-              year: { $year: "$createdAt" },
-              month: { $month: "$createdAt" },
-            },
-            totalRevenue: { $sum: "$property.price" },
-          },
-        },
-        { $sort: { "_id.year": 1, "_id.month": 1 } },
-        { $limit: 12 },
-        {
-          $project: {
-            _id: 0,
-            month: {
-              $let: {
-                vars: {
-                  monthsInString: [
-                    ,
-                    "Jan",
-                    "Feb",
-                    "Mar",
-                    "Apr",
-                    "May",
-                    "Jun",
-                    "Jul",
-                    "Aug",
-                    "Sep",
-                    "Oct",
-                    "Nov",
-                    "Dec",
-                  ],
-                },
-                in: { $arrayElemAt: ["$$monthsInString", "$_id.month"] },
-              },
-            },
-            revenue: "$totalRevenue",
-          },
-        },
-      ]),
+      Blog.countDocuments(),
+      Contact.countDocuments(),
+      Lead.countDocuments(),
+      QuoteRequest.countDocuments(),
+      NewsLetter.countDocuments(),
+      Contact.find()
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select("name email message createdAt")
+        .lean()
+        .maxTimeMS(3000),
+      Lead.find()
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select("name email phone budget status createdAt")
+        .lean()
+        .maxTimeMS(3000),
+      QuoteRequest.find()
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select("name email service budget timeline createdAt")
+        .lean()
+        .maxTimeMS(3000),
     ]);
 
-    res.json({
-      totalProperties,
-      totalUsers,
-      totalBookings,
-
-      todayBookings,
-      totalRevenue: totalRevenue[0]?.totalRevenue || 0,
-      monthlyRevenue: monthlyRevenue[0]?.monthlyRevenue || 0,
-      bookingsPerMonth,
-      revenuePerMonth,
+    res.status(200).json({
+      totalBlogs,
+      totalContacts,
+      totalLeads,
+      totalQuoteRequests,
+      totalSubscribers,
+      recentContacts,
+      recentLeads,
+      recentQuotes,
     });
   } catch (error) {
-    console.error("Error fetching dashboard stats:", error);
-    res.status(500).json({ message: "Server Error" });
+    console.error("Dashboard stats error:", error.message);
+    res.status(500).json({ message: error.message });
   }
 };
