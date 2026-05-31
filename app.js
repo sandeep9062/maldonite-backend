@@ -26,6 +26,7 @@ import cronRoutes from "./routes/cronRoutes.js";
 import projectSeederRoutes from "./routes/projectSeeder.js";
 import blogSeederRoutes from "./routes/blogSeeder.js";
 import quoteRequestRoutes from "./routes/quoteRequestRoutes.js";
+import careerRoutes from "./routes/careerRoutes.js";
 
 connectDB();
 
@@ -80,6 +81,7 @@ app.use("/api/v1/contacts", contactRoutes);
 app.use("/api/v1/quote-requests", quoteRequestRoutes);
 app.use("/api/v1/maldo", chatRoutes);
 app.use("/api/v1/leads", leadRoutes);
+app.use("/api/v1/careers", careerRoutes);
 app.use("/api", cronRoutes);
 app.use("/api/v1/projects", projectSeederRoutes);
 app.use("/api/v1/blogs", blogSeederRoutes);
