@@ -5,9 +5,26 @@ import { createNotification } from './notificationController.js';
 // @desc    Get all bookings
 // @route   GET /api/bookings
 // @access  Private/Admin
+// Hardened: was `Booking.find({})` with two .populate() calls and no limit —
+// it loaded the entire collection (plus populated docs) into memory. Now it
+// paginates (?page, ?limit), uses lean() and a server-side timeout. Response
+// stays a plain array for backward compatibility.
 const getAllBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({}).populate('user', 'name email').populate('property', 'title');
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit, 10) || 50, 1),
+      200,
+    );
+
+    const bookings = await Booking.find({})
+      .populate('user', 'name email')
+      .populate('property', 'title')
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .maxTimeMS(5000);
+
     res.json(bookings);
   } catch (error) {
     console.error('Error fetching bookings:', error);

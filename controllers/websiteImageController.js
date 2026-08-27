@@ -65,9 +65,16 @@ export const getImageByContext = async (req, res) => {
 };
 
 // @desc   Get all images
+// Hardened: lean + server timeout + safety cap (response shape unchanged).
+const MAX_LIST_SIZE = 2000;
+
 export const getImages = async (req, res) => {
   try {
-    const images = await WebsiteImage.find().sort({ order: 1 });
+    const images = await WebsiteImage.find()
+      .sort({ order: 1 })
+      .lean()
+      .maxTimeMS(5000)
+      .limit(MAX_LIST_SIZE);
     res.json({ success: true, data: images });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

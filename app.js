@@ -7,6 +7,7 @@ import cron from "node-cron";
 import compression from "compression";
 
 import connectDB from "./config/db.js";
+import { startEventLoopMonitor } from "./utils/eventLoopMonitor.js";
 
 // importing routes
 import chatRoutes from "./routes/chatRoutes.js";
@@ -27,6 +28,10 @@ import projectSeederRoutes from "./routes/projectSeeder.js";
 import blogSeederRoutes from "./routes/blogSeeder.js";
 import quoteRequestRoutes from "./routes/quoteRequestRoutes.js";
 import careerRoutes from "./routes/careerRoutes.js";
+
+// Event loop watchdog: logs lag/freezes so event loop starvation can be
+// pinpointed (distinguishes in-process blocking from host suspension).
+startEventLoopMonitor();
 
 connectDB();
 

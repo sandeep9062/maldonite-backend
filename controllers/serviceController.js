@@ -69,10 +69,17 @@ export const createService = async (req, res) => {
 
 // =============================
 // GET ALL SERVICES
+// Hardened: lean + server timeout + safety cap (response shape unchanged).
 // =============================
+const MAX_LIST_SIZE = 2000;
+
 export const getServices = async (req, res) => {
   try {
-    const services = await Service.find().sort({ title: 1 });
+    const services = await Service.find()
+      .sort({ title: 1 })
+      .lean()
+      .maxTimeMS(5000)
+      .limit(MAX_LIST_SIZE);
     res.status(200).json({ success: true, services });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

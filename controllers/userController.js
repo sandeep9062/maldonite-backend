@@ -6,10 +6,31 @@ import mongoose from "mongoose";
 // @desc    Get all users
 // @route   GET /api/users
 // @access  Private/Admin
-
+// Hardened: was `User.find({})` with NO field selection — it returned every
+// user INCLUDING password hashes, unpaginated, fully hydrated. Now it excludes
+// the password, paginates (?page, ?limit), and uses lean(). Response stays a
+// plain array for backward compatibility.
 export const getUsers = async (req, res) => {
-  const users = await User.find({});
-  res.json(users);
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit, 10) || 50, 1),
+      200,
+    );
+
+    const users = await User.find({})
+      .select("-password")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .maxTimeMS(5000);
+
+    res.json(users);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
 };
 
 // Helper function to check if a string is a valid MongoDB ObjectId

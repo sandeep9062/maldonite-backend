@@ -26,8 +26,8 @@ export const projects = [
     specialFeature: "Augmented Reality product preview in-browser.",
     numberOfPages: 12,
     image: [
-      "https://images.unsplash.com/photo-1441986300917-64674bd600d8",
-      "https://images.unsplash.com/photo-1523381210434-271e8be1f52b",
+      "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1400&q=80",
+      "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=1400&q=80",
     ],
   },
   {
@@ -52,8 +52,8 @@ export const projects = [
     specialFeature: "AI-powered property valuation tool.",
     numberOfPages: 45,
     image: [
-      "https://images.unsplash.com/photo-1560518883-ce09059eeffa",
-      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750",
+      "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1400&q=80",
+      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1400&q=80",
     ],
   },
   {
@@ -73,7 +73,7 @@ export const projects = [
     features: ["Offline mode", "Push notifications", "HealthKit integration"],
     specialFeature: "Dynamic workout generation based on heart rate data.",
     numberOfPages: 8,
-    image: ["https://images.unsplash.com/photo-1517836357463-d25dfeac3438"],
+    image: ["https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1400&q=80"],
   },
   {
     title: "CrypTrack Dashboard",
@@ -96,7 +96,7 @@ export const projects = [
     ],
     specialFeature: "Predictive sentiment analysis from social media feeds.",
     numberOfPages: 15,
-    image: ["https://images.unsplash.com/photo-1621761191319-c6fb62004040"],
+    image: ["https://images.unsplash.com/photo-1621761191319-c6fb62004040?auto=format&fit=crop&w=1400&q=80"],
   },
   {
     title: "EcoLogistics Dashboard",
@@ -120,7 +120,7 @@ export const projects = [
     specialFeature:
       "Smart route optimization that saves 15% on fuel consumption.",
     numberOfPages: 22,
-    image: ["https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d"],
+    image: ["https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1400&q=80"],
   },
   {
     title: "Lumina Creative Portfolio",
@@ -144,7 +144,7 @@ export const projects = [
     specialFeature:
       "Canvas-based mouse trailing effects and fluid transitions.",
     numberOfPages: 6,
-    image: ["https://images.unsplash.com/photo-1493612276216-ee3925520721"],
+    image: ["https://images.unsplash.com/photo-1493612276216-ee3925520721?auto=format&fit=crop&w=1400&q=80"],
   },
   {
     title: "EduStream LMS",
@@ -167,7 +167,7 @@ export const projects = [
     ],
     specialFeature: "Automated AI-generated quiz questions from video content.",
     numberOfPages: 30,
-    image: ["https://images.unsplash.com/photo-1501504905252-473c47e087f8"],
+    image: ["https://images.unsplash.com/photo-1501504905252-473c47e087f8?auto=format&fit=crop&w=1400&q=80"],
   },
   {
     title: "SwiftServe POS",
@@ -190,7 +190,7 @@ export const projects = [
     ],
     specialFeature: "Real-time sync between 10+ devices without lag.",
     numberOfPages: 14,
-    image: ["https://images.unsplash.com/photo-1556742044-3c52d6e88c62"],
+    image: ["https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&w=1400&q=80"],
   },
   {
     title: "HealthConnect Telemedicine",
@@ -214,7 +214,7 @@ export const projects = [
     specialFeature:
       "Encrypted secure messaging with zero-knowledge architecture.",
     numberOfPages: 25,
-    image: ["https://images.unsplash.com/photo-1576091160550-2173dba999ef"],
+    image: ["https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=1400&q=80"],
   },
   {
     title: "Nova Gaming Forum",
@@ -233,6 +233,6 @@ export const projects = [
     features: ["User reputations", "Live match tickers", "Forum threads"],
     specialFeature: "Twitch and Discord API integration for user verification.",
     numberOfPages: 20,
-    image: ["https://images.unsplash.com/photo-1542751371-adc38448a05e"],
+    image: ["https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1400&q=80"],
   },
 ];

@@ -102,10 +102,33 @@ export const createQuoteRequest = async (req, res) => {
 };
 
 // Get all quote requests
+// Hardened: this collection grows with every quote submission (user-generated),
+// so unlike the curated content collections it MUST be paginated. The `data`
+// field remains an array, so existing consumers keep working.
 export const getAllQuoteRequests = async (req, res) => {
   try {
-    const requests = await QuoteRequest.find().sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: requests });
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit, 10) || 20, 1),
+      100,
+    );
+    const skip = (page - 1) * limit;
+
+    const [requests, total] = await Promise.all([
+      QuoteRequest.find()
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .maxTimeMS(5000),
+      QuoteRequest.countDocuments(),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: requests,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
   } catch (error) {
     console.error("Error fetching quote requests:", error);
     res.status(500).json({ success: false, message: "Server error" });

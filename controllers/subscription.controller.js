@@ -28,9 +28,14 @@ export const getUserSubscriptions = async (req, res, next) => {
       throw error;
     }
 
+    // Hardened: lean + timeout + safety cap (response shape unchanged).
     const subscriptions = await Subscription.find({
       user: req.user.id,
-    });
+    })
+      .sort({ createdAt: -1 })
+      .lean()
+      .maxTimeMS(5000)
+      .limit(2000);
 
     res.status(200).json({
       success: true,
@@ -44,7 +49,12 @@ export const getUserSubscriptions = async (req, res, next) => {
 
 export const getAllSubscriptions = async (req, res, next) => {
   try {
-    const subscriptions = await Subscription.find();
+    // Hardened: lean + timeout + safety cap (response shape unchanged).
+    const subscriptions = await Subscription.find()
+      .sort({ createdAt: -1 })
+      .lean()
+      .maxTimeMS(5000)
+      .limit(2000);
 
     res.status(200).json({
       success: true,

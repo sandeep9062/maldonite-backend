@@ -69,11 +69,33 @@ export const createProduct = async (req, res) => {
 };
 
 // ✅ Get All Products
+// Hardened: lean (no mongoose hydration), server timeout, sort, and a safety
+// cap so a growing collection can never stall the event loop or exhaust RAM.
+// Supports optional ?page & ?limit (e.g. /?page=1&limit=50); response shape
+// (plain array) is unchanged for backward compatibility.
+const MAX_LIST_SIZE = 2000;
+
 export const getProducts = async (req, res) => {
   try {
     const { category } = req.query;
     const filter = category ? { category } : {};
-    const products = await Product.find(filter);
+
+    const query = Product.find(filter)
+      .sort({ createdAt: -1 })
+      .lean()
+      .maxTimeMS(5000);
+
+    const page = parseInt(req.query.page, 10);
+    const limit = parseInt(req.query.limit, 10);
+
+    if (Number.isFinite(limit) && limit > 0) {
+      query.skip(Number.isFinite(page) && page > 0 ? (page - 1) * limit : 0);
+      query.limit(Math.min(limit, MAX_LIST_SIZE));
+    } else {
+      query.limit(MAX_LIST_SIZE); // safety cap — never return an unbounded set
+    }
+
+    const products = await query;
     res.json(products);
   } catch (error) {
     res.status(500).json({ message: error.message });
