@@ -75,8 +75,10 @@ app.use(compression());
 app.use(
   cors({
     origin: [
-      "https://dashboard.maldonite.com",
       "https://maldonite.com",
+      "https://www.maldonite.com",
+      "https://www.dashboard.maldonite.com",
+      "https://dashboard.maldonite.com",
       "http://localhost:3000",
     ],
     credentials: true,
@@ -157,7 +159,9 @@ app.listen(PORT, () => {
           await PingLog.deleteMany({ pingTime: { $lt: oneDayAgo } });
           console.log("🧹 Cleaned up old keep-alive logs to save space.");
         } catch (cleanErr) {
-          console.error(`❌ Keep-alive log cleanup failed: ${cleanErr.message}`);
+          console.error(
+            `❌ Keep-alive log cleanup failed: ${cleanErr.message}`,
+          );
         }
       }
     } catch (error) {
